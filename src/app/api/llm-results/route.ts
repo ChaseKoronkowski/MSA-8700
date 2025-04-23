@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
+import { parseLLMResult } from '@/utils/llmParser';
 
 export async function POST(request: NextRequest) {
   try {
@@ -34,6 +35,23 @@ export async function POST(request: NextRequest) {
         { error: 'Failed to save LLM result' },
         { status: 500 }
       );
+    }
+
+    // If this is a travel recommendation, parse and store the structured data
+    if (type === 'travel_recommendation' && result) {
+      const parseResult = await parseLLMResult(supabase, result.id, content);
+      
+      if (!parseResult.success) {
+        console.error('Failed to parse LLM result:', parseResult.error);
+        // We still return success because the original result was saved
+      } else {
+        // Add the destination ID to the response
+        return NextResponse.json({ 
+          success: true, 
+          data: result, 
+          destinationId: parseResult.destinationId 
+        });
+      }
     }
 
     return NextResponse.json({ success: true, data: result });

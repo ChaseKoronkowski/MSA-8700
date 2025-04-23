@@ -15,15 +15,20 @@
     "@emotion/styled": "^11.14.0",
     "@mui/icons-material": "^7.0.2",
     "@mui/material": "^7.0.2",
+    "@react-google-maps/api": "^2.20.6",
     "@supabase/auth-helpers-nextjs": "^0.10.0",
     "@supabase/supabase-js": "^2.49.4",
+    "@types/uuid": "^10.0.0",
     "date-fns": "^4.1.0",
     "framer-motion": "^12.6.2",
+    "leaflet": "^1.9.4",
     "next": "15.2.4",
     "openai": "^4.90.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
-    "react-markdown": "^10.1.0"
+    "react-leaflet": "^5.0.0",
+    "react-markdown": "^10.1.0",
+    "uuid": "^11.1.0"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",

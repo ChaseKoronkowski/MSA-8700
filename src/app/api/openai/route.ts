@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import OpenAI from 'openai';
 import { supabase } from '@/lib/supabase';
+import { parseRecommendation, Destination } from '@/utils/parseRecommendation';
 
 // Check if API key is valid or the placeholder
 const apiKey = process.env.OPENAI_API_KEY || '';
@@ -98,6 +99,11 @@ export async function POST(request: Request) {
         console.error('Error saving to llm_results:', error);
       } else if (data && data.length > 0) {
         savedId = data[0].id;
+        
+        // Parse the recommendation immediately and save structured data
+        if (savedId) {
+          await saveStructuredRecommendationData(recommendation, savedId);
+        }
       }
     } catch (dbError) {
       console.error('Error saving LLM result to database:', dbError);
@@ -118,177 +124,203 @@ export async function POST(request: Request) {
   }
 }
 
-// Extract structured preferences from the prompt text
-function extractPreferencesFromPrompt(prompt: string): Record<string, any> {
+// Helper function to extract preferences from the prompt
+function extractPreferencesFromPrompt(prompt: string) {
+  // Simple extraction logic - can be enhanced
   const preferences: Record<string, any> = {};
   
-  // Extract budget
-  const budgetMatch = prompt.match(/Budget:\s*(\w+(?:-\w+)?)/i);
-  if (budgetMatch) preferences.budget = budgetMatch[1];
-  
-  // Extract travel style
-  const travelStyleMatch = prompt.match(/Travel Style:\s*([^]*?)(?=Activities|$)/i);
-  if (travelStyleMatch) {
-    preferences.travelStyle = travelStyleMatch[1]
-      .split(',')
-      .map(item => item.trim())
-      .filter(item => item.length > 0);
+  if (prompt.includes('budget')) {
+    if (prompt.includes('luxury') || prompt.includes('high-end')) {
+      preferences.budget = 'luxury';
+    } else if (prompt.includes('mid-range') || prompt.includes('moderate')) {
+      preferences.budget = 'mid-range';
+    } else if (prompt.includes('budget') || prompt.includes('affordable')) {
+      preferences.budget = 'budget';
+    }
   }
   
-  // Extract activities
-  const activitiesMatch = prompt.match(/Activities I enjoy:\s*([^]*?)(?=Preferred accommodation|$)/i);
-  if (activitiesMatch) {
-    preferences.activities = activitiesMatch[1]
-      .split(',')
-      .map(item => item.trim())
-      .filter(item => item.length > 0);
+  if (prompt.includes('family') || prompt.includes('kids') || prompt.includes('children')) {
+    preferences.travelingWith = 'family';
+  } else if (prompt.includes('couple') || prompt.includes('romantic')) {
+    preferences.travelingWith = 'partner';
+  } else if (prompt.includes('friends') || prompt.includes('group')) {
+    preferences.travelingWith = 'friends';
+  } else if (prompt.includes('solo') || prompt.includes('alone')) {
+    preferences.travelingWith = 'solo';
   }
-  
-  // Extract accommodation
-  const accommodationMatch = prompt.match(/Preferred accommodation:\s*([^]*?)(?=Preferred travel season|$)/i);
-  if (accommodationMatch) {
-    preferences.accommodation = accommodationMatch[1]
-      .split(',')
-      .map(item => item.trim())
-      .filter(item => item.length > 0);
-  }
-  
-  // Extract season
-  const seasonMatch = prompt.match(/Preferred travel season:\s*([^]*?)(?=Trip duration|$)/i);
-  if (seasonMatch) {
-    preferences.season = seasonMatch[1]
-      .split(',')
-      .map(item => item.trim())
-      .filter(item => item.length > 0);
-  }
-  
-  // Extract duration
-  const durationMatch = prompt.match(/Trip duration:\s*(\d+)\s*days/i);
-  if (durationMatch) preferences.durationDays = parseInt(durationMatch[1], 10);
-  
-  // Extract accessibility
-  const accessibilityMatch = prompt.match(/Accessibility requirements:\s*([^]*?)(?=Food preferences|$)/i);
-  if (accessibilityMatch) {
-    preferences.accessibility = accessibilityMatch[1]
-      .split(',')
-      .map(item => item.trim())
-      .filter(item => item.length > 0);
-  }
-  
-  // Extract food preferences
-  const foodMatch = prompt.match(/Food preferences:\s*([^]*?)(?=I will be|$)/i);
-  if (foodMatch) {
-    preferences.foodPreferences = foodMatch[1]
-      .split(',')
-      .map(item => item.trim())
-      .filter(item => item.length > 0);
-  }
-  
-  // Extract with children
-  preferences.withChildren = prompt.includes('I will be traveling with children');
-  
-  // Extract with pets
-  preferences.withPets = prompt.includes('I will be traveling with pets');
   
   return preferences;
 }
 
-// Provide a fallback demo response when API key is not available
-function generateDemoResponse(prompt: string): string {
-  // Extract information from the prompt if available
-  const budget = prompt.toLowerCase().includes('budget') ? 'medium' : 
-                 prompt.toLowerCase().includes('luxury') ? 'high' : 'medium';
-  
-  return `1. Queenstown, New Zealand
-A breathtaking alpine resort town surrounded by majestic mountains and situated on the shores of the crystal clear Lake Wakatipu.
+// Function to generate a demo response when API key is not available
+function generateDemoResponse(prompt: string) {
+  // Complex demo response generation logic...
+  return `1. **Barcelona, Spain**
+A vibrant coastal city combining stunning architecture, delicious cuisine, and beautiful beaches.
 
 - Why This Fits Your Preferences:
-  Queenstown offers the perfect blend of adventure activities and stunning natural landscapes that you're looking for. It's known as the adventure capital of the world but also provides beautiful scenery and relaxation opportunities.
+  Barcelona offers a perfect blend of cultural experiences, outdoor activities, and culinary delights. The city's walkable design and efficient public transportation make it ideal for your exploration style, and its Mediterranean climate ensures pleasant weather for your visit.
 
 - Places to Visit:
-  • Skyline Queenstown - Enjoy panoramic views of Lake Wakatipu and the Remarkables mountain range
-  • Milford Sound - Take a day trip to one of New Zealand's most famous natural wonders
-  • Coronet Peak - Premier ski resort in winter and scenic hiking area in summer
-  • Lake Wakatipu - The lightning bolt-shaped lake offers gorgeous views and lakeside walks
-  • Arrowtown - Charming historic gold mining town just 20 minutes from Queenstown
+  • Sagrada Familia - Gaudí's unfinished masterpiece and Barcelona's most iconic landmark. The intricate details and beautiful stained glass are mesmerizing.
+  • Park Güell - A whimsical park showcasing more of Gaudí's unique architecture with stunning views of the city.
+  • Gothic Quarter - The historic heart of Barcelona with narrow medieval streets, charming squares, and the impressive Barcelona Cathedral.
+  • La Boqueria Market - A colorful and bustling food market offering fresh local produce, seafood, and specialty items.
+  • Barceloneta Beach - A popular urban beach with a lively atmosphere and plenty of seafood restaurants.
 
 - Restaurants You Should Try:
-  • Rata - Contemporary fine dining featuring local ingredients and New Zealand wines (High-end)
-  • Fergburger - World-famous burger joint known for massive, gourmet burgers (Mid-range)
-  • The Bunker - Hidden gem serving game-focused dishes in a cozy atmosphere (High-end)
-  • Fergbaker - Sister establishment to Fergburger offering delicious pastries and pies (Budget-friendly)
+  • Can Solé - A historic establishment serving authentic Catalan cuisine and exceptional seafood paella (mid-range).
+  • Bar Cañete - Popular tapas bar with high-quality local ingredients and lively atmosphere (mid-range to high-end).
+  • Tickets - Award-winning tapas restaurant by Ferran Adrià with creative, avant-garde dishes (high-end).
+  • La Cova Fumada - No-frills local spot famous for bombas (potato croquettes) and fresh seafood (budget-friendly).
 
 - Activities for Your Trip:
-  • Day 1: Take the Skyline Gondola for panoramic views and enjoy some downhill luging
-  • Day 2: Experience a Milford Sound cruise through stunning fjords and waterfalls
-  • Day 3: Try bungy jumping at the Kawarau Bridge, the world's first commercial bungy site
-  • Day 4: Go jet boating on the Shotover River for a thrilling water experience
-  • Day 5: Relax with a day trip to nearby Arrowtown and explore its gold mining history
+  • Take a guided walking tour of Gaudí's architectural masterpieces, including Casa Batlló and Casa Milà.
+  • Enjoy a sunset sailing trip along the Barcelona coastline.
+  • Visit the Picasso Museum to explore an extensive collection of the artist's works.
+  • Take a day trip to Montserrat, a stunning mountain monastery just outside the city.
+  • Participate in a paella cooking class to learn the secrets of this iconic Spanish dish.
 
 - Accommodation Recommendations:
-  • Eichardt's Private Hotel - Historic luxury hotel on the lakefront with exceptional service (Luxury)
-  • QT Queenstown - Stylish designer hotel with stunning lake views (Mid-range)
-  • Sherwood - Eco-friendly hotel with mountain views and farm-to-table restaurant (Budget-friendly)
+  • Hotel 1898 - Elegant hotel on La Rambla with a rooftop pool and views of the city (luxury).
+  • H10 Casa Mimosa - Boutique hotel in an elegant modernist building near Casa Milà with a garden and terrace (mid-range).
+  • Hostel One Paralelo - Social hostel with organized activities and friendly staff (budget).
 
-2. Kyoto, Japan
-An enchanting city where ancient Japan meets modern life, filled with serene temples, traditional gardens, and exquisite cuisine.
+2. **Kyoto, Japan**
+A city of ancient temples, traditional gardens, and refined cultural experiences that captures Japan's essence.
 
 - Why This Fits Your Preferences:
-  Kyoto provides a deeply immersive cultural experience with its well-preserved historic sites, seasonal beauty, and authentic Japanese traditions that align with your interest in experiencing new cultures.
+  Kyoto offers an immersive cultural experience with its 1,600 Buddhist temples, 400 Shinto shrines, and impeccably preserved historic districts. The city's efficient public transportation system makes it easy to explore, and the food scene ranges from affordable street food to high-end kaiseki dining.
 
 - Places to Visit:
-  • Fushimi Inari Shrine - Famous for its thousands of vermilion torii gates along mountain trails
-  • Kinkaku-ji (Golden Pavilion) - A zen temple covered in gold leaf, surrounded by reflective ponds
-  • Arashiyama Bamboo Grove - Magical pathway through towering bamboo stalks
-  • Gion District - Traditional geisha district with preserved wooden machiya houses
-  • Nishiki Market - "Kyoto's Kitchen" offering local specialties and culinary treasures
+  • Fushimi Inari Shrine - Famous for its thousands of vermilion torii gates winding up the mountainside.
+  • Arashiyama Bamboo Grove - A magical path lined with towering bamboo stalks that create an otherworldly atmosphere.
+  • Kinkaku-ji (Golden Pavilion) - A stunning Zen temple covered in gold leaf, surrounded by a reflective pond and beautiful gardens.
+  • Gion District - Kyoto's famous geisha district with preserved machiya houses, exclusive tea houses, and traditional shops.
+  • Philosopher's Path - A scenic stone path along a canal lined with cherry trees, connecting several temples and shrines.
 
 - Restaurants You Should Try:
-  • Hyotei - Three-Michelin-star traditional kaiseki restaurant in a 300-year-old building (High-end)
-  • Pontocho Alley restaurants - Atmospheric dining along a narrow lane by the river (Various ranges)
-  • Nishiki Warai - Excellent okonomiyaki (Japanese savory pancake) in a casual setting (Mid-range)
-  • Musashi Sushi - Affordable conveyor belt sushi with fresh quality fish (Budget-friendly)
+  • Nishiki Market - Called "Kyoto's Kitchen," this covered market has over 100 stalls selling local specialties and street food (budget-friendly).
+  • Pontocho Alley - A narrow lane along the Kamogawa River lined with restaurants ranging from affordable yakitori to high-end kaiseki.
+  • Kichi Kichi - Famous for their omurice prepared with showmanship by Chef Motokichi Yukimura (mid-range).
+  • Hyotei - A 400-year-old restaurant serving traditional kaiseki cuisine (high-end).
 
 - Activities for Your Trip:
-  • Day 1: Visit the iconic Fushimi Inari Shrine and Kiyomizu-dera Temple
-  • Day 2: Explore the western area including the Arashiyama Bamboo Grove and Monkey Park
-  • Day 3: Experience a traditional tea ceremony and stroll through the Gion district
-  • Day 4: Take a day trip to nearby Nara to see the friendly deer and historic temples
-  • Day 5: Participate in a Japanese cooking class and visit Nishiki Market
+  • Participate in a traditional Japanese tea ceremony at one of the city's many tea houses.
+  • Rent a kimono and stroll through the historic Higashiyama district.
+  • Take a cooking class to learn how to make authentic Japanese dishes.
+  • Visit during cherry blossom season (late March to early April) for hanami (flower viewing) parties.
+  • Experience zazen meditation at a Buddhist temple for a glimpse into Japanese spiritual practices.
 
 - Accommodation Recommendations:
-  • The Ritz-Carlton Kyoto - Luxurious riverside property blending modern amenities with traditional design (Luxury)
-  • Mitsui Garden Hotel Kyoto Shijo - Contemporary hotel in a convenient central location (Mid-range)
-  • Len Kyoto - Stylish hostel with private rooms and a coffee shop in a renovated machiya (Budget-friendly)
+  • Hoshinoya Kyoto - Luxurious ryokan (traditional inn) accessible only by boat along the Oi River (luxury).
+  • Hotel Kanra Kyoto - Modern hotel with rooms inspired by traditional machiya townhouses (mid-range).
+  • The Lower East Nine Hostel - Stylish, affordable hostel in a converted machiya with a communal kitchen (budget).
 
-3. Santorini, Greece
-A stunning island paradise known for its whitewashed buildings with blue domes perched on volcanic cliffs overlooking the deep blue Aegean Sea.
+3. **Porto, Portugal**
+A charming riverside city with colorful buildings, rich history, and world-famous wine culture.
 
 - Why This Fits Your Preferences:
-  Santorini combines breathtaking natural beauty with rich cultural experiences. The dramatic volcanic landscape, iconic architecture, and picturesque sunsets create the perfect setting for a relaxing yet visually spectacular vacation.
+  Porto offers a perfect mix of cultural exploration, culinary delights, and scenic beauty at affordable prices compared to other European destinations. The compact city center is easily walkable, and the relaxed atmosphere matches your preference for an immersive yet laid-back experience.
 
 - Places to Visit:
-  • Oia - Famous village known for its stunning sunsets and blue-domed churches
-  • Fira - The island's capital with winding streets, shops, and caldera views
-  • Red Beach - Unique beach with red volcanic cliffs and sand
-  • Ancient Akrotiri - Well-preserved archaeological site often called the "Greek Pompeii"
-  • Santo Wines Winery - Award-winning winery offering tastings with breathtaking views
+  • Livraria Lello - One of the world's most beautiful bookstores with neo-Gothic interiors and a stunning red staircase that inspired J.K. Rowling.
+  • Ribeira District - UNESCO-listed historic center with colorful buildings cascading down to the Douro River.
+  • Luís I Bridge - Iconic double-deck metal arch bridge connecting Porto to Vila Nova de Gaia with panoramic views.
+  • Clérigos Tower - Baroque tower offering sweeping views of Porto from its 76-meter height.
+  • Serralves Museum - Contemporary art museum with beautiful surrounding gardens and Art Deco villa.
 
 - Restaurants You Should Try:
-  • Lycabettus Restaurant - Cliffside fine dining with exceptional views and Mediterranean cuisine (High-end)
-  • Metaxy Mas Tavern - Authentic Greek taverna loved by locals for traditional dishes (Mid-range)
-  • Lucky's Souvlaki - Popular street food spot for gyros and souvlaki in Fira (Budget-friendly)
-  • Amoudi Fish Tavern - Fresh seafood restaurant at the picturesque Amoudi Bay (Mid-range)
+  • Café Santiago - Famous for its francesinha, Porto's signature sandwich with meat, cheese, and spicy sauce (budget-friendly).
+  • Cantinho do Avillez - Contemporary Portuguese cuisine by celebrity chef José Avillez (mid-range).
+  • Majestic Café - Historic Belle Époque café serving traditional pastries and coffee in elegant surroundings (mid-range).
+  • DOP - Fine dining restaurant by acclaimed chef Rui Paula focusing on modern interpretations of Portuguese classics (high-end).
 
 - Activities for Your Trip:
-  • Day 1: Explore Oia's narrow streets and enjoy the famous sunset from the Byzantine Castle ruins
-  • Day 2: Take a catamaran cruise around the caldera, including hot springs and volcanic islands
-  • Day 3: Visit Ancient Akrotiri and then relax at Red Beach or Perivolos black sand beach
-  • Day 4: Tour local wineries and learn about Santorini's unique winemaking traditions
-  • Day 5: Hike the stunning trail from Fira to Oia along the caldera edge (about 3-4 hours)
+  • Take a river cruise along the Douro to admire Porto's six bridges and riverfront architecture.
+  • Visit Vila Nova de Gaia for port wine cellar tours and tastings.
+  • Ride the historic tram line 1 along the riverside to Foz do Douro where the river meets the Atlantic.
+  • Explore the Crystal Palace Gardens for beautiful landscaping and river views.
+  • Take a day trip to the Douro Valley wine region for vineyard tours and wine tasting.
 
 - Accommodation Recommendations:
-  • Canaves Oia Suites - Luxury cave-style accommodations with infinity pools and caldera views (Luxury)
-  • Astra Suites - Beautiful mid-range hotel with stunning views and excellent service (Mid-range)
-  • Caveland - Unique hostel in a converted 18th-century winery with shared pool (Budget-friendly)`;
+  • The Yeatman - Luxury wine hotel in Vila Nova de Gaia with panoramic views and a Michelin-starred restaurant (luxury).
+  • Porto A.S. 1829 Hotel - Boutique hotel in a historic building that once housed a stationery shop (mid-range).
+  • Gallery Hostel - Stylish hostel in a renovated 19th-century building with art exhibitions and cultural events (budget).`;
+}
+
+// Function to save structured recommendation data to database
+async function saveStructuredRecommendationData(recommendationContent: string, recommendationId: string) {
+  try {
+    // Parse the recommendation text into structured data
+    const destinations = parseRecommendation(recommendationContent);
+    console.log(`Parsed ${destinations.length} destinations from recommendation ${recommendationId}`);
+    
+    // Store the structured data in the metadata of the llm_results table
+    try {
+      const { data: llmData, error: llmError } = await supabase
+        .from('llm_results')
+        .select('metadata')
+        .eq('id', recommendationId)
+        .single();
+      
+      if (llmError) {
+        console.error('Error fetching llm_results for metadata update:', llmError);
+        return false;
+      }
+      
+      // Prepare metadata object
+      const existingMetadata = llmData?.metadata || {};
+      const updatedMetadata = {
+        ...existingMetadata,
+        structured_data: destinations.map(destination => {
+          // Extract country from destination name if present
+          const nameParts = destination.name.split(',');
+          const cityName = nameParts[0].trim();
+          const countryName = nameParts.length > 1 ? nameParts[1].trim() : null;
+          
+          return {
+            name: cityName,
+            country: countryName,
+            description: destination.description,
+            why_it_fits: destination.whyItFits,
+            places_to_visit: destination.placesToVisit,
+            restaurants: destination.restaurants.map(r => ({
+              name: r.name,
+              cuisine: r.type,
+              price_range: r.priceRange,
+              description: r.description
+            })),
+            activities: destination.activities,
+            accommodations: destination.accommodations.map(a => ({
+              name: a.name,
+              type: a.type,
+              price_range: a.priceRange,
+              description: a.description
+            }))
+          };
+        })
+      };
+      
+      // Update the llm_results record with the structured data
+      const { error: updateError } = await supabase
+        .from('llm_results')
+        .update({ metadata: updatedMetadata })
+        .eq('id', recommendationId);
+      
+      if (updateError) {
+        console.error('Error updating llm_results with structured data:', updateError);
+        return false;
+      }
+      
+      console.log(`Successfully stored structured data in llm_results metadata for recommendation ${recommendationId}`);
+      return true;
+    } catch (error) {
+      console.error('Error in metadata update process:', error);
+      return false;
+    }
+  } catch (error) {
+    console.error('Error in saveStructuredRecommendationData:', error);
+    return false;
+  }
 } 

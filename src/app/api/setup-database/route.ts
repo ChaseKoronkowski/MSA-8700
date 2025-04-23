@@ -1,69 +1,124 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { createClient } from '@/utils/supabase/server';
 
 export async function GET(req: NextRequest) {
+  const authHeader = req.headers.get('authorization');
+  const apiKey = process.env.SETUP_API_KEY;
+
+  // Basic security check
+  if (!authHeader || !apiKey || authHeader !== `Bearer ${apiKey}`) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  const supabase = createClient();
+  const tableCreationResults = {
+    extensions: false,
+    access_codes: false,
+    llm_results: false,
+    destinations: false,
+    places_to_visit: false,
+    restaurants: false,
+    activities: false,
+    accommodations: false
+  };
+
   try {
-    // For security, this endpoint should be protected in production
-    const apiKey = req.nextUrl.searchParams.get('key');
-    if (apiKey !== process.env.SETUP_API_KEY) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    // Enable UUID extension if not already enabled
+    const { error: extensionError } = await supabase.rpc('create_uuid_extension');
+    if (extensionError) {
+      console.error('Error enabling UUID extension:', extensionError);
+    } else {
+      tableCreationResults.extensions = true;
     }
 
-    // Check if the access_codes table exists
-    const { error: accessCodesTableError } = await supabase
-      .from('access_codes')
-      .select('*')
-      .limit(1);
+    // Load SQL functions from file
+    const { data: sqlFunctionsData, error: sqlFunctionsError } = await supabase
+      .storage
+      .from('sql')
+      .download('table_setup_functions.sql');
+
+    if (sqlFunctionsError) {
+      console.error('Error loading SQL functions:', sqlFunctionsError);
+      return NextResponse.json({ 
+        error: 'Failed to load SQL functions', 
+        details: sqlFunctionsError 
+      }, { status: 500 });
+    }
+
+    const sqlFunctions = await sqlFunctionsData.text();
     
-    // Create access_codes table if it doesn't exist
-    if (accessCodesTableError) {
-      const { error: createAccessCodesError } = await supabase.rpc('create_access_codes_table');
-      
-      if (createAccessCodesError) {
-        console.error('Error creating access_codes table:', createAccessCodesError);
-        return NextResponse.json(
-          { error: 'Failed to create access_codes table' },
-          { status: 500 }
-        );
-      }
-      
-      // Insert default access code
-      const { error: insertAccessCodeError } = await supabase
-        .from('access_codes')
-        .insert([
-          { code: 'ACCESS2024', is_active: true },
-        ]);
-      
-      if (insertAccessCodeError) {
-        console.error('Error inserting default access code:', insertAccessCodeError);
-      }
+    // Execute SQL functions
+    const { error: functionCreateError } = await supabase.rpc('execute_sql', { sql: sqlFunctions });
+    if (functionCreateError) {
+      console.error('Error creating SQL functions:', functionCreateError);
+      return NextResponse.json({ 
+        error: 'Failed to create SQL functions', 
+        details: functionCreateError 
+      }, { status: 500 });
     }
 
-    // Check if the llm_results table exists
-    const { error: llmResultsTableError } = await supabase
-      .from('llm_results')
-      .select('*')
-      .limit(1);
-    
-    // Create llm_results table if it doesn't exist
-    if (llmResultsTableError) {
-      const { error: createLlmResultsError } = await supabase.rpc('create_llm_results_table');
-      
-      if (createLlmResultsError) {
-        console.error('Error creating llm_results table:', createLlmResultsError);
-        return NextResponse.json(
-          { error: 'Failed to create llm_results table' },
-          { status: 500 }
-        );
-      }
+    // Create access_codes table
+    const { error: accessCodesError } = await supabase.rpc('create_access_codes_table');
+    if (accessCodesError) {
+      console.error('Error creating access_codes table:', accessCodesError);
+    } else {
+      tableCreationResults.access_codes = true;
     }
 
-    return NextResponse.json({ success: true, message: 'Database setup completed successfully' });
+    // Create llm_results table
+    const { error: llmResultsError } = await supabase.rpc('create_llm_results_table');
+    if (llmResultsError) {
+      console.error('Error creating llm_results table:', llmResultsError);
+    } else {
+      tableCreationResults.llm_results = true;
+    }
+
+    // Create destinations table
+    const { error: destinationsError } = await supabase.rpc('create_destinations_table');
+    if (destinationsError) {
+      console.error('Error creating destinations table:', destinationsError);
+    } else {
+      tableCreationResults.destinations = true;
+    }
+
+    // Create places_to_visit table
+    const { error: placesToVisitError } = await supabase.rpc('create_places_to_visit_table');
+    if (placesToVisitError) {
+      console.error('Error creating places_to_visit table:', placesToVisitError);
+    } else {
+      tableCreationResults.places_to_visit = true;
+    }
+
+    // Create restaurants table
+    const { error: restaurantsError } = await supabase.rpc('create_restaurants_table');
+    if (restaurantsError) {
+      console.error('Error creating restaurants table:', restaurantsError);
+    } else {
+      tableCreationResults.restaurants = true;
+    }
+
+    // Create activities table
+    const { error: activitiesError } = await supabase.rpc('create_activities_table');
+    if (activitiesError) {
+      console.error('Error creating activities table:', activitiesError);
+    } else {
+      tableCreationResults.activities = true;
+    }
+
+    // Create accommodations table
+    const { error: accommodationsError } = await supabase.rpc('create_accommodations_table');
+    if (accommodationsError) {
+      console.error('Error creating accommodations table:', accommodationsError);
+    } else {
+      tableCreationResults.accommodations = true;
+    }
+
+    return NextResponse.json({
+      message: 'Database setup initiated',
+      results: tableCreationResults
+    });
   } catch (error) {
     console.error('Error setting up database:', error);
-    return NextResponse.json(
-      { error: 'An unexpected error occurred while setting up the database' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'Failed to set up database', details: error }, { status: 500 });
   }
 } 

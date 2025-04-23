@@ -15,6 +15,10 @@ import {
   AccessibilityOption,
   FoodOption,
 } from '@/types';
+import { Box, Container, Typography, Button, LinearProgress } from '@mui/material';
+import ArrowBackIcon from '@mui/icons-material/ArrowBack';
+import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
+import CheckIcon from '@mui/icons-material/Check';
 
 export default function RecommendationPage() {
   const router = useRouter();
@@ -98,7 +102,7 @@ export default function RecommendationPage() {
   const handleMultiSelectChange = (field: keyof typeof preferences, value: string, checked: boolean) => {
     if (checked) {
       updatePreferences({
-        [field]: [...preferences[field], value],
+        [field]: [...(preferences[field] as any[]), value],
       } as any);
     } else {
       updatePreferences({
@@ -146,6 +150,12 @@ export default function RecommendationPage() {
       const data = await response.json();
       setRecommendation(data.recommendation);
       
+      // Parse the recommendation text into structured data
+      const parsedData = parseRecommendation(data.recommendation);
+      
+      // Save to database
+      await saveRecommendationToDatabase(data.recommendation, parsedData, prompt);
+      
       // Redirect to dashboard instead of results page
       router.push('/dashboard/view-all-recommendations');
     } catch (error) {
@@ -156,14 +166,140 @@ export default function RecommendationPage() {
     }
   };
 
+  // Parse recommendation into structured data
+  const parseRecommendation = (text: string): any[] => {
+    const destinations: any[] = [];
+    const lines = text.split('\n');
+
+    let currentDestination: any = null;
+    let currentSection = '';
+    
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i].trim();
+      
+      // Skip empty lines
+      if (!line) continue;
+
+      // Check if this is a destination header (format: 1. City Name, Country)
+      // But make sure it's not a numbered point within an existing section
+      const destinationMatch = line.match(/^(\d+)\.\s+(.+)$/);
+      const isNumberedPoint = currentDestination && 
+                               currentSection !== 'description' && 
+                               destinationMatch && 
+                               !line.includes(',') && // Most main destinations include a comma (City, Country)
+                               i > 0 && lines[i-1].trim().length > 0; // Check if previous line isn't empty
+      
+      if (destinationMatch && !isNumberedPoint) {
+        // Save the previous destination if exists
+        if (currentDestination) {
+          destinations.push(currentDestination);
+        }
+        
+        // Get the next line as the description
+        let description = '';
+        if (i + 1 < lines.length) {
+          description = lines[i + 1].trim();
+        }
+        
+        // Create a new destination object
+        currentDestination = {
+          name: destinationMatch[2].trim(),
+          description: description,
+          whyFits: '',
+          placesToVisit: '',
+          restaurants: '',
+          activities: '',
+          accommodations: ''
+        };
+        currentSection = 'description'; // Default section after destination name
+        continue;
+      }
+
+      // Skip if we haven't found a destination yet
+      if (!currentDestination) continue;
+
+      // Check for section headers
+      if (line.match(/^-\s*Why This Fits/i)) {
+        currentSection = 'whyFits';
+        continue;
+      } else if (line.match(/^-\s*Places to Visit/i)) {
+        currentSection = 'placesToVisit';
+        continue;
+      } else if (line.match(/^-\s*Restaurants You Should Try/i)) {
+        currentSection = 'restaurants';
+        continue;
+      } else if (line.match(/^-\s*Activities for Your Trip/i)) {
+        currentSection = 'activities';
+        continue;
+      } else if (line.match(/^-\s*Accommodation Recommendations/i)) {
+        currentSection = 'accommodations';
+        continue;
+      }
+
+      // Add content to the current section
+      if (currentSection === 'description' && line === currentDestination.description) {
+        // Skip the description since we already added it
+        continue;
+      }
+
+      if (currentDestination[currentSection] !== undefined) {
+        // Add bullet points or format as needed
+        currentDestination[currentSection] += (currentDestination[currentSection] ? '\n' : '') + line;
+      }
+    }
+
+    // Add the last destination
+    if (currentDestination) {
+      destinations.push(currentDestination);
+    }
+    
+    return destinations;
+  };
+
+  // Save recommendation to database
+  const saveRecommendationToDatabase = async (rawContent: string, parsedDestinations: any[], originalPrompt: string) => {
+    try {
+      const response = await fetch('/api/recommendations', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ 
+          content: rawContent,
+          type: 'travel', 
+          metadata: {
+            destinations: parsedDestinations,
+            preferences: preferences,
+            original_prompt: originalPrompt
+          }
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error('Failed to save recommendation:', errorData);
+      }
+    } catch (error) {
+      console.error('Error saving recommendation to database:', error);
+    }
+  };
+
   // Render different steps
   const renderStep = () => {
     switch (step) {
       case 1:
         return (
-          <div className="space-y-8">
-            <h2 className="text-3xl font-bold text-white">What's your budget?</h2>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+          <Box sx={{ mb: 5 }}>
+            <Typography variant="h4" sx={{ mb: 3, fontWeight: 700, color: '#f5f5f5' }}>
+              What's your budget?
+            </Typography>
+            <Box 
+              sx={{ 
+                display: 'grid', 
+                gridTemplateColumns: { xs: '1fr', md: 'repeat(3, 1fr)' }, 
+                gap: 4
+              }}
+            >
               {budgetOptions.map((option) => (
                 <PreferenceOption
                   key={option.value}
@@ -175,15 +311,25 @@ export default function RecommendationPage() {
                   onChange={handleBudgetChange}
                 />
               ))}
-            </div>
-          </div>
+            </Box>
+          </Box>
         );
       case 2:
         return (
-          <div className="space-y-8">
-            <h2 className="text-3xl font-bold text-white">What's your travel style?</h2>
-            <p className="text-gray-300">Select all that apply</p>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+          <Box sx={{ mb: 5 }}>
+            <Typography variant="h4" sx={{ mb: 1, fontWeight: 700, color: '#f5f5f5' }}>
+              What's your travel style?
+            </Typography>
+            <Typography variant="body1" sx={{ mb: 3, color: 'rgba(255, 255, 255, 0.7)' }}>
+              Select all that apply
+            </Typography>
+            <Box 
+              sx={{ 
+                display: 'grid', 
+                gridTemplateColumns: { xs: '1fr', md: 'repeat(3, 1fr)' }, 
+                gap: 4
+              }}
+            >
               {travelStyleOptions.map((option) => (
                 <PreferenceOption
                   key={option.value}
@@ -196,15 +342,25 @@ export default function RecommendationPage() {
                   multiSelect
                 />
               ))}
-            </div>
-          </div>
+            </Box>
+          </Box>
         );
       case 3:
         return (
-          <div className="space-y-8">
-            <h2 className="text-3xl font-bold text-white">What activities do you enjoy?</h2>
-            <p className="text-gray-300">Select all that apply</p>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+          <Box sx={{ mb: 5 }}>
+            <Typography variant="h4" sx={{ mb: 1, fontWeight: 700, color: '#f5f5f5' }}>
+              What activities do you enjoy?
+            </Typography>
+            <Typography variant="body1" sx={{ mb: 3, color: 'rgba(255, 255, 255, 0.7)' }}>
+              Select all that apply
+            </Typography>
+            <Box 
+              sx={{ 
+                display: 'grid', 
+                gridTemplateColumns: { xs: '1fr', md: 'repeat(3, 1fr)' }, 
+                gap: 4
+              }}
+            >
               {activityOptions.map((option) => (
                 <PreferenceOption
                   key={option.value}
@@ -217,15 +373,25 @@ export default function RecommendationPage() {
                   multiSelect
                 />
               ))}
-            </div>
-          </div>
+            </Box>
+          </Box>
         );
       case 4:
         return (
-          <div className="space-y-8">
-            <h2 className="text-3xl font-bold text-white">Preferred accommodation types</h2>
-            <p className="text-gray-300">Select all that apply</p>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+          <Box sx={{ mb: 5 }}>
+            <Typography variant="h4" sx={{ mb: 1, fontWeight: 700, color: '#f5f5f5' }}>
+              Preferred accommodation types
+            </Typography>
+            <Typography variant="body1" sx={{ mb: 3, color: 'rgba(255, 255, 255, 0.7)' }}>
+              Select all that apply
+            </Typography>
+            <Box 
+              sx={{ 
+                display: 'grid', 
+                gridTemplateColumns: { xs: '1fr', md: 'repeat(3, 1fr)' }, 
+                gap: 4
+              }}
+            >
               {accommodationOptions.map((option) => (
                 <PreferenceOption
                   key={option.value}
@@ -238,15 +404,25 @@ export default function RecommendationPage() {
                   multiSelect
                 />
               ))}
-            </div>
-          </div>
+            </Box>
+          </Box>
         );
       case 5:
         return (
-          <div className="space-y-8">
-            <h2 className="text-3xl font-bold text-white">When do you prefer to travel?</h2>
-            <p className="text-gray-300">Select all that apply</p>
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
+          <Box sx={{ mb: 5 }}>
+            <Typography variant="h4" sx={{ mb: 1, fontWeight: 700, color: '#f5f5f5' }}>
+              When do you prefer to travel?
+            </Typography>
+            <Typography variant="body1" sx={{ mb: 3, color: 'rgba(255, 255, 255, 0.7)' }}>
+              Select all that apply
+            </Typography>
+            <Box 
+              sx={{ 
+                display: 'grid', 
+                gridTemplateColumns: { xs: '1fr', md: 'repeat(4, 1fr)' }, 
+                gap: 4
+              }}
+            >
               {seasonOptions.map((option) => (
                 <PreferenceOption
                   key={option.value}
@@ -259,37 +435,77 @@ export default function RecommendationPage() {
                   multiSelect
                 />
               ))}
-            </div>
-          </div>
+            </Box>
+          </Box>
         );
       case 6:
         return (
-          <div className="space-y-8">
-            <h2 className="text-3xl font-bold text-white">How many days do you plan to travel?</h2>
-            <div className="flex flex-col items-center">
-              <div className="w-full max-w-md">
-                <input
+          <Box sx={{ mb: 5 }}>
+            <Typography variant="h4" sx={{ mb: 3, fontWeight: 700, color: '#f5f5f5' }}>
+              How many days do you plan to travel?
+            </Typography>
+            <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+              <Box sx={{ width: '100%', maxWidth: '500px' }}>
+                <Box
+                  component="input"
                   type="range"
                   min="1"
                   max="30"
                   value={preferences.durationDays}
                   onChange={handleDurationChange}
-                  className="w-full h-3 bg-gray-600 rounded-lg appearance-none cursor-pointer"
+                  sx={{
+                    width: '100%',
+                    height: '12px',
+                    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+                    borderRadius: '8px',
+                    appearance: 'none',
+                    cursor: 'pointer',
+                    '&::-webkit-slider-thumb': {
+                      appearance: 'none',
+                      width: '24px',
+                      height: '24px',
+                      borderRadius: '50%',
+                      backgroundColor: '#90caf9',
+                      cursor: 'pointer'
+                    }
+                  }}
                 />
-                <div className="text-center mt-4">
-                  <span className="text-4xl font-bold text-white">{preferences.durationDays}</span>
-                  <span className="text-2xl ml-2 text-white">days</span>
-                </div>
-              </div>
-            </div>
-          </div>
+                <Box sx={{ textAlign: 'center', mt: 2 }}>
+                  <Typography 
+                    variant="h3" 
+                    component="span" 
+                    sx={{ fontWeight: 700, color: '#f5f5f5', mr: 1 }}
+                  >
+                    {preferences.durationDays}
+                  </Typography>
+                  <Typography 
+                    variant="h5" 
+                    component="span" 
+                    sx={{ color: '#f5f5f5' }}
+                  >
+                    days
+                  </Typography>
+                </Box>
+              </Box>
+            </Box>
+          </Box>
         );
       case 7:
         return (
-          <div className="space-y-8">
-            <h2 className="text-3xl font-bold text-white">Accessibility requirements</h2>
-            <p className="text-gray-300">Select all that apply</p>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+          <Box sx={{ mb: 5 }}>
+            <Typography variant="h4" sx={{ mb: 1, fontWeight: 700, color: '#f5f5f5' }}>
+              Accessibility requirements
+            </Typography>
+            <Typography variant="body1" sx={{ mb: 3, color: 'rgba(255, 255, 255, 0.7)' }}>
+              Select all that apply
+            </Typography>
+            <Box 
+              sx={{ 
+                display: 'grid', 
+                gridTemplateColumns: { xs: '1fr', md: 'repeat(3, 1fr)' }, 
+                gap: 4
+              }}
+            >
               {accessibilityOptions.map((option) => (
                 <PreferenceOption
                   key={option.value}
@@ -302,15 +518,25 @@ export default function RecommendationPage() {
                   multiSelect
                 />
               ))}
-            </div>
-          </div>
+            </Box>
+          </Box>
         );
       case 8:
         return (
-          <div className="space-y-8">
-            <h2 className="text-3xl font-bold text-white">Food preferences</h2>
-            <p className="text-gray-300">Select all that apply</p>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+          <Box sx={{ mb: 5 }}>
+            <Typography variant="h4" sx={{ mb: 1, fontWeight: 700, color: '#f5f5f5' }}>
+              Food preferences
+            </Typography>
+            <Typography variant="body1" sx={{ mb: 3, color: 'rgba(255, 255, 255, 0.7)' }}>
+              Select all that apply
+            </Typography>
+            <Box 
+              sx={{ 
+                display: 'grid', 
+                gridTemplateColumns: { xs: '1fr', md: 'repeat(3, 1fr)' }, 
+                gap: 4
+              }}
+            >
               {foodOptions.map((option) => (
                 <PreferenceOption
                   key={option.value}
@@ -323,40 +549,64 @@ export default function RecommendationPage() {
                   multiSelect
                 />
               ))}
-            </div>
-          </div>
+            </Box>
+          </Box>
         );
       case 9:
         return (
-          <div className="space-y-8">
-            <h2 className="text-3xl font-bold text-white">Additional preferences</h2>
-            <div className="space-y-6">
-              <div className="flex items-center">
-                <input
+          <Box sx={{ mb: 5 }}>
+            <Typography variant="h4" sx={{ mb: 3, fontWeight: 700, color: '#f5f5f5' }}>
+              Additional preferences
+            </Typography>
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                <Box
+                  component="input"
                   id="with-children"
                   type="checkbox"
                   checked={preferences.withChildren}
                   onChange={(e) => handleCheckboxChange('withChildren', e.target.checked)}
-                  className="w-6 h-6 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                  sx={{
+                    width: '24px',
+                    height: '24px',
+                    mr: 2,
+                    accentColor: '#90caf9'
+                  }}
                 />
-                <label htmlFor="with-children" className="ml-3 text-xl text-white">
+                <Typography 
+                  component="label"
+                  htmlFor="with-children"
+                  variant="h6" 
+                  sx={{ color: '#f5f5f5' }}
+                >
                   Traveling with children
-                </label>
-              </div>
-              <div className="flex items-center">
-                <input
+                </Typography>
+              </Box>
+              <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                <Box
+                  component="input"
                   id="with-pets"
                   type="checkbox"
                   checked={preferences.withPets}
                   onChange={(e) => handleCheckboxChange('withPets', e.target.checked)}
-                  className="w-6 h-6 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                  sx={{
+                    width: '24px',
+                    height: '24px',
+                    mr: 2,
+                    accentColor: '#90caf9'
+                  }}
                 />
-                <label htmlFor="with-pets" className="ml-3 text-xl text-white">
+                <Typography 
+                  component="label"
+                  htmlFor="with-pets"
+                  variant="h6" 
+                  sx={{ color: '#f5f5f5' }}
+                >
                   Traveling with pets
-                </label>
-              </div>
-            </div>
-          </div>
+                </Typography>
+              </Box>
+            </Box>
+          </Box>
         );
       default:
         return null;
@@ -364,60 +614,143 @@ export default function RecommendationPage() {
   };
 
   return (
-    <div className="flex flex-col min-h-screen bg-black">
+    <Box sx={{ 
+      minHeight: '100vh',
+      backgroundColor: '#2c2c2c', 
+      color: 'white',
+      display: 'flex',
+      flexDirection: 'column'
+    }}>
       <Header />
       
-      <main className="flex-grow flex flex-col">
-        <div className="container mx-auto px-6 py-8 flex-grow flex flex-col justify-center">
-          <h1 className="text-4xl md:text-5xl font-bold text-center text-white mb-2">Tell Us Your Travel Preferences</h1>
-          <p className="text-center text-gray-300 mb-6">Step {step} of 9</p>
+      <Box sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column', py: 4 }}>
+        <Container maxWidth="xl" sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+          <Typography 
+            variant="h3" 
+            component="h1"
+            align="center" 
+            fontWeight="700"
+            sx={{ 
+              mb: 2,
+              color: '#f5f5f5'
+            }}
+          >
+            Tell Us Your Travel Preferences
+          </Typography>
+          
+          <Typography 
+            variant="subtitle1"
+            align="center"
+            sx={{ 
+              color: 'rgba(255, 255, 255, 0.7)',
+              mb: 3
+            }}
+          >
+            Step {step} of 9
+          </Typography>
 
           {/* Progress Bar */}
-          <div className="w-full bg-gray-700 rounded-full h-3 mb-12">
-            <div
-              className="bg-blue-700 h-3 rounded-full transition-all duration-300"
-              style={{ width: `${(step / 9) * 100}%` }}
-            ></div>
-          </div>
+          <Box sx={{ 
+            width: '100%', 
+            bgcolor: 'rgba(255, 255, 255, 0.1)', 
+            borderRadius: 5,
+            mb: 6,
+            height: 8
+          }}>
+            <LinearProgress
+              variant="determinate"
+              value={(step / 9) * 100}
+              sx={{
+                height: 8,
+                borderRadius: 5,
+                backgroundColor: 'transparent',
+                '& .MuiLinearProgress-bar': {
+                  backgroundColor: '#90caf9',
+                  borderRadius: 5
+                }
+              }}
+            />
+          </Box>
 
           {/* Preference Content */}
-          <div className="max-w-5xl mx-auto w-full">
+          <Box sx={{ maxWidth: '1000px', width: '100%', mx: 'auto' }}>
             {renderStep()}
 
             {/* Navigation Buttons */}
-            <div className="flex justify-between mt-16">
-              <button
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 8 }}>
+              <Button
                 onClick={handlePrevStep}
                 disabled={step === 1}
-                className={`px-8 py-3 rounded-lg text-lg ${
-                  step === 1
-                    ? 'bg-gray-700 text-gray-400 cursor-not-allowed'
-                    : 'bg-gray-700 text-white hover:bg-gray-600'
-                }`}
+                startIcon={<ArrowBackIcon />}
+                sx={{
+                  px: 3,
+                  py: 1.5,
+                  borderRadius: 2,
+                  textTransform: 'none',
+                  fontSize: '1rem',
+                  color: 'white',
+                  backgroundColor: step === 1 ? 'rgba(255, 255, 255, 0.1)' : 'rgba(255, 255, 255, 0.15)',
+                  '&:hover': {
+                    backgroundColor: 'rgba(255, 255, 255, 0.25)',
+                  },
+                  '&.Mui-disabled': {
+                    color: 'rgba(255, 255, 255, 0.3)',
+                  }
+                }}
               >
                 Previous
-              </button>
+              </Button>
 
               {step < 9 ? (
-                <button
+                <Button
                   onClick={handleNextStep}
-                  className="px-8 py-3 bg-blue-800 text-white rounded-lg hover:bg-blue-700 text-lg"
+                  endIcon={<ArrowForwardIcon />}
+                  sx={{
+                    px: 3,
+                    py: 1.5,
+                    backgroundColor: '#90caf9',
+                    color: '#000',
+                    borderRadius: 2,
+                    textTransform: 'none',
+                    fontSize: '1rem',
+                    fontWeight: 500,
+                    '&:hover': {
+                      backgroundColor: '#6ba8de',
+                    }
+                  }}
                 >
                   Next
-                </button>
+                </Button>
               ) : (
-                <button
+                <Button
                   onClick={handleGetRecommendations}
                   disabled={loading}
-                  className="px-8 py-3 bg-blue-800 text-white rounded-lg hover:bg-blue-700 disabled:bg-blue-300 text-lg"
+                  endIcon={loading ? null : <CheckIcon />}
+                  sx={{
+                    px: 3,
+                    py: 1.5,
+                    backgroundColor: '#90caf9',
+                    color: '#000',
+                    borderRadius: 2,
+                    textTransform: 'none',
+                    fontSize: '1rem',
+                    fontWeight: 500,
+                    '&:hover': {
+                      backgroundColor: '#6ba8de',
+                    },
+                    '&.Mui-disabled': {
+                      backgroundColor: 'rgba(144, 202, 249, 0.5)',
+                      color: 'rgba(0, 0, 0, 0.4)'
+                    }
+                  }}
                 >
-                  {loading ? 'Loading...' : 'Get Recommendations'}
-                </button>
+                  {loading ? 'Processing...' : 'Get Recommendations'}
+                </Button>
               )}
-            </div>
-          </div>
-        </div>
-      </main>
-    </div>
+            </Box>
+          </Box>
+        </Container>
+      </Box>
+    </Box>
   );
 } 

@@ -1,38 +1,22 @@
 /**
  * Destination interface representing the structured data parsed from LLM output
  */
-export interface Destination {
-  name: string;
-  description: string;
-  whyItFits: string;
-  placesToVisit: {
-    name: string;
-    description: string;
-  }[];
-  restaurants: {
-    name: string;
-    type: string;
-    priceRange: string;
-    description: string;
-  }[];
-  activities: {
-    name: string;
-    description: string;
-  }[];
-  accommodations: {
-    name: string;
-    type: string;
-    priceRange: string;
-    description: string;
-  }[];
-  highlights?: string[];
-}
+// interface Destination {
+//   name: string;
+//   description: string;
+//   whyItFits: string;
+//   placesToVisit: { name: string; description: string; }[];
+//   restaurants: { name: string; type: string; priceRange: string; description: string; }[];
+//   activities: { name: string; description: string; }[];
+//   accommodations: { name: string; type: string; priceRange: string; description: string; }[];
+//   highlights?: string[];
+// }
 
 /**
  * Parse recommendation content from LLM output into structured data
  */
-export function parseRecommendation(content: string): Destination[] {
-  const destinations: Destination[] = [];
+function parseRecommendation(content) {
+  const destinations = [];
   
   // Split content by numbered destinations (e.g., "1. Barcelona, Spain")
   const destinationRegex = /(\d+)\.\s+\*\*([^*]+)\*\*\s*([^\n]+)\n([\s\S]*?)(?=\d+\.\s+\*\*|$)/g;
@@ -44,10 +28,10 @@ export function parseRecommendation(content: string): Destination[] {
     const detailBlock = match[4].trim();
     
     let whyItFits = '';
-    const placesToVisit: { name: string; description: string; }[] = [];
-    const restaurants: { name: string; type: string; priceRange: string; description: string; }[] = [];
-    const activities: { name: string; description: string; }[] = [];
-    const accommodations: { name: string; type: string; priceRange: string; description: string; }[] = [];
+    const placesToVisit = [];
+    const restaurants = [];
+    const activities = [];
+    const accommodations = [];
     
     // Extract "Why This Fits Your Preferences" section
     const whyFitsMatch = detailBlock.match(/-\s*Why This Fits[^:]*:([\s\S]*?)(?=-\s*Places to Visit|$)/i);
@@ -183,4 +167,8 @@ export function parseRecommendation(content: string): Destination[] {
   }
   
   return destinations;
-} 
+}
+
+module.exports = {
+  parseRecommendation
+}; 

@@ -7,6 +7,17 @@ import { usePreferences } from '@/context/PreferencesContext';
 import { generatePrompt } from '@/utils/promptGenerator';
 import { motion, AnimatePresence } from 'framer-motion';
 import Image from 'next/image';
+import { Box, Container, Typography, Button, CircularProgress, Card, CardContent, Chip, Alert, IconButton } from '@mui/material';
+import ArrowBackIcon from '@mui/icons-material/ArrowBack';
+import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
+import InfoIcon from '@mui/icons-material/Info';
+import RestaurantIcon from '@mui/icons-material/Restaurant';
+import HomeIcon from '@mui/icons-material/Home';
+import LocationOnIcon from '@mui/icons-material/LocationOn';
+import DirectionsIcon from '@mui/icons-material/Directions';
+import LocalActivityIcon from '@mui/icons-material/LocalActivity';
+import MapIcon from '@mui/icons-material/Map';
+import EditIcon from '@mui/icons-material/Edit';
 
 // Define the DestinationDetails interface
 interface DestinationDetails {
@@ -251,97 +262,252 @@ export default function ResultsPage() {
     image: string
   ) => {
     return (
-      <div className="rounded-lg shadow-xl bg-gray-900 overflow-hidden mb-8 border border-gray-800">
-        <div className="relative h-64 mb-6">
-          <Image
-            src={image || '/placeholder-image.jpg'}
-            alt={destinationName}
-            fill
-            className="object-cover"
-            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-          />
-          <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent"></div>
-          <div className="absolute bottom-4 left-4 right-4">
-            <h2 className="text-4xl font-bold text-white drop-shadow-lg">{destinationName}</h2>
-          </div>
-        </div>
+      <Box>
+        <Card 
+          sx={{ 
+            backgroundColor: '#333333',
+            color: 'white',
+            borderRadius: 2,
+            boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
+            overflow: 'hidden',
+            border: '1px solid rgba(255,255,255,0.05)',
+            mb: 4
+          }}
+        >
+          <Box sx={{ position: 'relative', height: '260px', width: '100%' }}>
+            {image ? (
+              <Box 
+                component="img"
+                src={image}
+                alt={destinationName}
+                sx={{
+                  width: '100%',
+                  height: '100%',
+                  objectFit: 'cover'
+                }}
+              />
+            ) : (
+              <Box 
+                sx={{ 
+                  width: '100%',
+                  height: '100%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  backgroundColor: '#444444'
+                }}
+              >
+                <CircularProgress sx={{ color: '#90caf9' }} />
+              </Box>
+            )}
+            <Box 
+              sx={{ 
+                position: 'absolute',
+                bottom: 0,
+                left: 0,
+                right: 0,
+                background: 'linear-gradient(to top, rgba(0,0,0,0.8) 0%, rgba(0,0,0,0) 100%)',
+                padding: 3,
+                paddingTop: 6
+              }}
+            >
+              <Typography variant="h4" component="h2" sx={{ fontWeight: 500, textShadow: '0 1px 3px rgba(0,0,0,0.6)' }}>
+                {destinationName}
+              </Typography>
+            </Box>
+          </Box>
 
-        <div className="px-6 mb-6">
-          <p className="text-gray-200 text-lg italic">{destinationDetails.description}</p>
-        </div>
+          <CardContent sx={{ p: 3 }}>
+            {destinationDetails.description && (
+              <Typography 
+                variant="body1" 
+                sx={{ 
+                  mb: 3,
+                  color: 'rgba(255, 255, 255, 0.9)',
+                  lineHeight: 1.6
+                }}
+              >
+                {destinationDetails.description}
+              </Typography>
+            )}
 
-        <div className="px-6 pb-6 overflow-y-auto max-h-[calc(100vh-500px)] custom-scrollbar">
-          {destinationDetails.whyFits && (
-            <div className="mb-6 bg-gray-800/50 p-4 rounded-lg shadow-inner">
-              <h3 className="flex items-center text-xl font-semibold text-blue-400 mb-2">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
-                  <path fillRule="evenodd" d="M6.267 3.455a3.066 3.066 0 001.745-.723 3.066 3.066 0 013.976 0 3.066 3.066 0 001.745.723 3.066 3.066 0 012.812 2.812c.051.643.304 1.254.723 1.745a3.066 3.066 0 010 3.976 3.066 3.066 0 00-.723 1.745 3.066 3.066 0 01-2.812 2.812 3.066 3.066 0 00-1.745.723 3.066 3.066 0 01-3.976 0 3.066 3.066 0 00-1.745-.723 3.066 3.066 0 01-2.812-2.812 3.066 3.066 0 00-.723-1.745 3.066 3.066 0 010-3.976 3.066 3.066 0 00.723-1.745 3.066 3.066 0 012.812-2.812zm7.44 5.252a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                </svg>
-                Why This Fits Your Preferences
-              </h3>
-              <div className="text-gray-200 whitespace-pre-line">
-                {destinationDetails.whyFits}
-              </div>
-            </div>
-          )}
+            {destinationDetails.whyFits && (
+              <Box 
+                sx={{ 
+                  mb: 3,
+                  p: 2,
+                  backgroundColor: 'rgba(255, 255, 255, 0.05)',
+                  borderRadius: 2,
+                  border: '1px solid rgba(255, 255, 255, 0.05)'
+                }}
+              >
+                <Typography 
+                  variant="subtitle1"
+                  sx={{ 
+                    display: 'flex',
+                    alignItems: 'center',
+                    color: '#90caf9',
+                    fontWeight: 500,
+                    mb: 1
+                  }}
+                >
+                  <InfoIcon sx={{ mr: 1, fontSize: '1.2rem' }} />
+                  Why This Fits
+                </Typography>
+                <Typography 
+                  variant="body2"
+                  sx={{ 
+                    color: 'rgba(255, 255, 255, 0.8)',
+                    whiteSpace: 'pre-line'
+                  }}
+                >
+                  {destinationDetails.whyFits}
+                </Typography>
+              </Box>
+            )}
 
-          {destinationDetails.placesToVisit && (
-            <div className="mb-6 bg-gray-800/50 p-4 rounded-lg shadow-inner">
-              <h3 className="flex items-center text-xl font-semibold text-blue-400 mb-2">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
-                  <path fillRule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clipRule="evenodd" />
-                </svg>
-                Places to Visit
-              </h3>
-              <div className="text-gray-200 whitespace-pre-line">
-                {destinationDetails.placesToVisit}
-              </div>
-            </div>
-          )}
+            {destinationDetails.placesToVisit && (
+              <Box 
+                sx={{ 
+                  mb: 3,
+                  p: 2,
+                  backgroundColor: 'rgba(255, 255, 255, 0.05)',
+                  borderRadius: 2,
+                  border: '1px solid rgba(255, 255, 255, 0.05)'
+                }}
+              >
+                <Typography 
+                  variant="subtitle1"
+                  sx={{ 
+                    display: 'flex',
+                    alignItems: 'center',
+                    color: '#90caf9',
+                    fontWeight: 500,
+                    mb: 1
+                  }}
+                >
+                  <LocationOnIcon sx={{ mr: 1, fontSize: '1.2rem' }} />
+                  Places to Visit
+                </Typography>
+                <Typography 
+                  variant="body2"
+                  sx={{ 
+                    color: 'rgba(255, 255, 255, 0.8)',
+                    whiteSpace: 'pre-line'
+                  }}
+                >
+                  {destinationDetails.placesToVisit}
+                </Typography>
+              </Box>
+            )}
 
-          {destinationDetails.restaurants && (
-            <div className="mb-6 bg-gray-800/50 p-4 rounded-lg shadow-inner">
-              <h3 className="flex items-center text-xl font-semibold text-blue-400 mb-2">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
-                  <path d="M3 1a1 1 0 000 2h1.22l.305 1.222a.997.997 0 00.01.042l1.358 5.43-.893.892C3.74 11.846 4.632 14 6.414 14H15a1 1 0 000-2H6.414l1-1H14a1 1 0 00.894-.553l3-6A1 1 0 0017 3H6.28l-.31-1.243A1 1 0 005 1H3zM16 16.5a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0zM6.5 18a1.5 1.5 0 100-3 1.5 1.5 0 000 3z" />
-                </svg>
-                Restaurants You Should Try
-              </h3>
-              <div className="text-gray-200 whitespace-pre-line">
-                {destinationDetails.restaurants}
-              </div>
-            </div>
-          )}
+            {destinationDetails.restaurants && (
+              <Box 
+                sx={{ 
+                  mb: 3,
+                  p: 2,
+                  backgroundColor: 'rgba(255, 255, 255, 0.05)',
+                  borderRadius: 2,
+                  border: '1px solid rgba(255, 255, 255, 0.05)'
+                }}
+              >
+                <Typography 
+                  variant="subtitle1"
+                  sx={{ 
+                    display: 'flex',
+                    alignItems: 'center',
+                    color: '#90caf9',
+                    fontWeight: 500,
+                    mb: 1
+                  }}
+                >
+                  <RestaurantIcon sx={{ mr: 1, fontSize: '1.2rem' }} />
+                  Restaurants You Should Try
+                </Typography>
+                <Typography 
+                  variant="body2"
+                  sx={{ 
+                    color: 'rgba(255, 255, 255, 0.8)',
+                    whiteSpace: 'pre-line'
+                  }}
+                >
+                  {destinationDetails.restaurants}
+                </Typography>
+              </Box>
+            )}
 
-          {destinationDetails.activities && (
-            <div className="mb-6 bg-gray-800/50 p-4 rounded-lg shadow-inner">
-              <h3 className="flex items-center text-xl font-semibold text-blue-400 mb-2">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
-                  <path d="M13 6a3 3 0 11-6 0 3 3 0 016 0zM18 8a2 2 0 11-4 0 2 2 0 014 0zM14 15a4 4 0 00-8 0v3h8v-3zM6 8a2 2 0 11-4 0 2 2 0 014 0zM16 18v-3a5.972 5.972 0 00-.75-2.906A3.005 3.005 0 0119 15v3h-3zM4.75 12.094A5.973 5.973 0 004 15v3H1v-3a3 3 0 013.75-2.906z" />
-                </svg>
-                Activities for Your Trip
-              </h3>
-              <div className="text-gray-200 whitespace-pre-line">
-                {destinationDetails.activities}
-              </div>
-            </div>
-          )}
+            {destinationDetails.activities && (
+              <Box 
+                sx={{ 
+                  mb: 3,
+                  p: 2,
+                  backgroundColor: 'rgba(255, 255, 255, 0.05)',
+                  borderRadius: 2,
+                  border: '1px solid rgba(255, 255, 255, 0.05)'
+                }}
+              >
+                <Typography 
+                  variant="subtitle1"
+                  sx={{ 
+                    display: 'flex',
+                    alignItems: 'center',
+                    color: '#90caf9',
+                    fontWeight: 500,
+                    mb: 1
+                  }}
+                >
+                  <LocalActivityIcon sx={{ mr: 1, fontSize: '1.2rem' }} />
+                  Activities for Your Trip
+                </Typography>
+                <Typography 
+                  variant="body2"
+                  sx={{ 
+                    color: 'rgba(255, 255, 255, 0.8)',
+                    whiteSpace: 'pre-line'
+                  }}
+                >
+                  {destinationDetails.activities}
+                </Typography>
+              </Box>
+            )}
 
-          {destinationDetails.accommodations && (
-            <div className="mb-6 bg-gray-800/50 p-4 rounded-lg shadow-inner">
-              <h3 className="flex items-center text-xl font-semibold text-blue-400 mb-2">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
-                  <path d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z" />
-                </svg>
-                Accommodation Recommendations
-              </h3>
-              <div className="text-gray-200 whitespace-pre-line">
-                {destinationDetails.accommodations}
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
+            {destinationDetails.accommodations && (
+              <Box 
+                sx={{ 
+                  mb: 3,
+                  p: 2,
+                  backgroundColor: 'rgba(255, 255, 255, 0.05)',
+                  borderRadius: 2,
+                  border: '1px solid rgba(255, 255, 255, 0.05)'
+                }}
+              >
+                <Typography 
+                  variant="subtitle1"
+                  sx={{ 
+                    display: 'flex',
+                    alignItems: 'center',
+                    color: '#90caf9',
+                    fontWeight: 500,
+                    mb: 1
+                  }}
+                >
+                  <HomeIcon sx={{ mr: 1, fontSize: '1.2rem' }} />
+                  Accommodation Recommendations
+                </Typography>
+                <Typography 
+                  variant="body2"
+                  sx={{ 
+                    color: 'rgba(255, 255, 255, 0.8)',
+                    whiteSpace: 'pre-line'
+                  }}
+                >
+                  {destinationDetails.accommodations}
+                </Typography>
+              </Box>
+            )}
+          </CardContent>
+        </Card>
+      </Box>
     );
   };
 
@@ -358,48 +524,100 @@ export default function ResultsPage() {
   };
 
   return (
-    <div className="flex flex-col min-h-screen bg-black">
+    <Box sx={{ 
+      minHeight: '100vh',
+      backgroundColor: '#2c2c2c', 
+      color: 'white',
+      display: 'flex',
+      flexDirection: 'column'
+    }}>
       <Header />
       
-      <main className="flex-grow flex items-center justify-center py-8">
-        <div className="container mx-auto px-6">
-          <h1 className="text-4xl md:text-5xl font-bold text-center text-white mb-12">Your Travel Recommendations</h1>
+      <Box sx={{ flexGrow: 1, display: 'flex', py: 4 }}>
+        <Container maxWidth="xl">
+          <Typography 
+            variant="h4" 
+            component="h1"
+            align="center" 
+            fontWeight="700"
+            sx={{ 
+              mb: 3,
+              color: '#f5f5f5'
+            }}
+          >
+            Your Travel Recommendations
+          </Typography>
           
           {isDemoData && (
-            <div className="max-w-4xl mx-auto mb-6 bg-blue-900/50 border border-blue-400 rounded-lg p-4 text-white">
-              <p className="flex items-center">
-                <svg className="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
-                  <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd"></path>
-                </svg>
-                <span>
-                  <strong>Demo Mode:</strong> You're viewing example recommendations. To see personalized results, set up an OpenAI API key in your .env.local file.
-                </span>
-              </p>
-            </div>
+            <Alert 
+              severity="info" 
+              sx={{ 
+                maxWidth: '900px', 
+                mx: 'auto', 
+                mb: 3,
+                backgroundColor: 'rgba(144, 202, 249, 0.15)',
+                color: '#f5f5f5',
+                '& .MuiAlert-icon': {
+                  color: '#90caf9'
+                }
+              }}
+            >
+              <Typography variant="body2">
+                <strong>Demo Mode:</strong> You're viewing example recommendations. To see personalized results, set up an OpenAI API key in your .env.local file.
+              </Typography>
+            </Alert>
           )}
           
-          <div className="max-w-4xl mx-auto bg-gray-900 rounded-lg shadow-lg p-8 md:p-10 text-white">
+          <Box 
+            sx={{ 
+              maxWidth: '900px', 
+              mx: 'auto',
+              backgroundColor: '#333333',
+              borderRadius: 2,
+              boxShadow: '0 4px 10px rgba(0,0,0,0.2)',
+              p: 4,
+              border: '1px solid rgba(255,255,255,0.05)'
+            }}
+          >
             {loading ? (
-              <div className="flex flex-col items-center justify-center py-16">
-                <div className="animate-spin rounded-full h-20 w-20 border-t-2 border-b-2 border-blue-400 mb-6"></div>
-                <p className="text-xl text-gray-300 mb-2">Generating your personalized travel recommendations...</p>
-                <p className="text-gray-400 text-sm">This may take a moment</p>
-              </div>
+              <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', py: 8 }}>
+                <CircularProgress size={60} sx={{ color: '#90caf9', mb: 3 }} />
+                <Typography variant="h6" sx={{ color: 'rgba(255, 255, 255, 0.7)', mb: 1 }}>
+                  Generating your personalized travel recommendations...
+                </Typography>
+                <Typography variant="body2" sx={{ color: 'rgba(255, 255, 255, 0.5)' }}>
+                  This may take a moment
+                </Typography>
+              </Box>
             ) : error ? (
-              <div className="text-center py-12">
-                <p className="text-red-400 text-xl mb-6">{error}</p>
-                <button 
+              <Box sx={{ textAlign: 'center', py: 6 }}>
+                <Typography variant="h6" sx={{ color: '#f44336', mb: 3 }}>
+                  {error}
+                </Typography>
+                <Button
+                  variant="contained"
                   onClick={handleBackToPreferences}
-                  className="px-8 py-3 bg-blue-800 text-white rounded-lg hover:bg-blue-700 text-lg"
+                  sx={{
+                    backgroundColor: '#90caf9',
+                    color: '#000',
+                    '&:hover': {
+                      backgroundColor: '#6ba8de',
+                    },
+                    textTransform: 'none',
+                    fontWeight: 500,
+                    py: 1,
+                    px: 3,
+                    borderRadius: 2
+                  }}
                 >
                   Back to Preferences
-                </button>
-              </div>
+                </Button>
+              </Box>
             ) : (
-              <div className="recommendation-content">
+              <Box>
                 {parsedDestinations.length > 0 ? (
                   <>
-                    <div className="min-h-[400px] mb-8">
+                    <Box sx={{ minHeight: '400px', mb: 4 }}>
                       <AnimatePresence mode="wait">
                         <motion.div
                           key={currentDestination}
@@ -411,81 +629,123 @@ export default function ResultsPage() {
                           {formatDestinationCard(parsedDestinations[currentDestination].name, parsedDestinations[currentDestination], destinationImages[currentDestination])}
                         </motion.div>
                       </AnimatePresence>
-                    </div>
+                    </Box>
                     
-                    <div className="flex justify-between items-center mb-10">
-                      <button 
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 5 }}>
+                      <Button
+                        variant="outlined"
+                        startIcon={<ArrowBackIcon />}
                         onClick={prevDestination}
                         disabled={currentDestination === 0}
-                        className={`px-4 py-2 rounded-lg flex items-center gap-2 ${
-                          currentDestination === 0 
-                            ? 'bg-gray-700 text-gray-500 cursor-not-allowed' 
-                            : 'bg-blue-900 text-white hover:bg-blue-800'
-                        }`}
+                        sx={{
+                          borderColor: currentDestination === 0 ? 'rgba(255, 255, 255, 0.1)' : '#90caf9',
+                          color: currentDestination === 0 ? 'rgba(255, 255, 255, 0.3)' : '#90caf9',
+                          '&:hover': {
+                            backgroundColor: 'rgba(144, 202, 249, 0.08)',
+                            borderColor: '#90caf9'
+                          },
+                          textTransform: 'none'
+                        }}
                       >
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                          <path fillRule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clipRule="evenodd" />
-                        </svg>
                         Previous
-                      </button>
+                      </Button>
                       
-                      <div className="text-center text-gray-400">
+                      <Typography variant="body2" sx={{ color: 'rgba(255, 255, 255, 0.5)' }}>
                         {currentDestination + 1} / {parsedDestinations.length}
-                      </div>
+                      </Typography>
                       
-                      <button 
+                      <Button
+                        variant="outlined"
+                        endIcon={<ArrowForwardIcon />}
                         onClick={nextDestination}
                         disabled={currentDestination === parsedDestinations.length - 1}
-                        className={`px-4 py-2 rounded-lg flex items-center gap-2 ${
-                          currentDestination === parsedDestinations.length - 1 
-                            ? 'bg-gray-700 text-gray-500 cursor-not-allowed' 
-                            : 'bg-blue-900 text-white hover:bg-blue-800'
-                        }`}
+                        sx={{
+                          borderColor: currentDestination === parsedDestinations.length - 1 ? 'rgba(255, 255, 255, 0.1)' : '#90caf9',
+                          color: currentDestination === parsedDestinations.length - 1 ? 'rgba(255, 255, 255, 0.3)' : '#90caf9',
+                          '&:hover': {
+                            backgroundColor: 'rgba(144, 202, 249, 0.08)',
+                            borderColor: '#90caf9'
+                          },
+                          textTransform: 'none'
+                        }}
                       >
                         Next
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                          <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
-                        </svg>
-                      </button>
-                    </div>
+                      </Button>
+                    </Box>
                     
-                    <div className="mt-12 flex justify-center">
-                      <button 
+                    <Box sx={{ mt: 5, display: 'flex', justifyContent: 'center' }}>
+                      <Button
+                        variant="contained"
+                        startIcon={<MapIcon />}
                         onClick={() => router.push('/route-planner')}
-                        className="px-8 py-4 bg-blue-700 text-white rounded-lg hover:bg-blue-600 text-xl font-semibold transition-all duration-300 shadow-lg hover:shadow-xl w-full max-w-md flex items-center justify-center gap-2"
+                        sx={{
+                          backgroundColor: '#90caf9',
+                          color: '#000',
+                          '&:hover': {
+                            backgroundColor: '#6ba8de',
+                          },
+                          textTransform: 'none',
+                          fontWeight: 500,
+                          py: 1.5,
+                          px: 4,
+                          borderRadius: 2,
+                          boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
+                          width: '100%',
+                          maxWidth: '400px'
+                        }}
                       >
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
-                        </svg>
                         Plan Route
-                      </button>
-                    </div>
+                      </Button>
+                    </Box>
                     
-                    <div className="mt-6 flex justify-center">
-                      <button 
+                    <Box sx={{ mt: 2, display: 'flex', justifyContent: 'center' }}>
+                      <Button
+                        variant="text"
+                        startIcon={<EditIcon />}
                         onClick={handleBackToPreferences}
-                        className="text-gray-400 hover:text-white transition-colors duration-300 text-sm"
+                        sx={{
+                          color: 'rgba(255, 255, 255, 0.5)',
+                          '&:hover': {
+                            color: 'rgba(255, 255, 255, 0.8)',
+                            backgroundColor: 'rgba(255, 255, 255, 0.05)'
+                          },
+                          textTransform: 'none'
+                        }}
                       >
                         Edit Preferences
-                      </button>
-                    </div>
+                      </Button>
+                    </Box>
                   </>
                 ) : (
-                  <div className="prose max-w-none prose-invert">
-                    <p className="text-gray-300">No destination recommendations found. Please try again.</p>
-                    <button 
+                  <Box sx={{ py: 4 }}>
+                    <Typography variant="body1" sx={{ color: 'rgba(255, 255, 255, 0.7)', mb: 3 }}>
+                      No destination recommendations found. Please try again.
+                    </Typography>
+                    <Button
+                      variant="contained"
                       onClick={handleBackToPreferences}
-                      className="mt-6 px-8 py-3 bg-blue-800 text-white rounded-lg hover:bg-blue-700 text-lg"
+                      sx={{
+                        backgroundColor: '#90caf9',
+                        color: '#000',
+                        '&:hover': {
+                          backgroundColor: '#6ba8de',
+                        },
+                        textTransform: 'none',
+                        fontWeight: 500,
+                        py: 1,
+                        px: 3,
+                        borderRadius: 2
+                      }}
                     >
                       Back to Preferences
-                    </button>
-                  </div>
+                    </Button>
+                  </Box>
                 )}
-              </div>
+              </Box>
             )}
-          </div>
-        </div>
-      </main>
-    </div>
+          </Box>
+        </Container>
+      </Box>
+    </Box>
   );
 } 
