@@ -1,9 +1,10 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
+import { IdRouteContext } from '@/types/next-api';
 
 export async function GET(
-  request: Request,
-  { params }: { params: { id: string } }
+  request: NextRequest,
+  context: IdRouteContext
 ) {
   try {
     // First, make sure the route_plans table exists
@@ -31,7 +32,7 @@ export async function GET(
       // Continue anyway, as the table might already exist
     }
 
-    const id = params.id;
+    const id = context.params.id;
     
     if (!id) {
       return NextResponse.json(
