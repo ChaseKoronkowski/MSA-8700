@@ -9,7 +9,7 @@ export async function saveLLMResult({
 }: {
   content: string;
   type: string;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
   user_identifier?: string;
 }) {
   try {
