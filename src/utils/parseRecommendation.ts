@@ -122,18 +122,72 @@ export function parseRecommendation(content: string): Destination[] {
         .filter(item => item && !item.match(/^[\s•\*]*$/));
         
       activityItems.forEach(activity => {
-        // Try to split activity into main activity and description
-        const parts = activity.split(/\s+-\s+|:\s+/);
-        if (parts.length > 1) {
-          activities.push({
-            name: parts[0].trim(),
-            description: parts.slice(1).join(' - ').trim()
+        // Check if this is a day-based activity
+        const dayActivityMatch = activity.match(/^Day\s+(\d+(?:-\d+)?):\s*(.*)/i);
+        
+        if (dayActivityMatch && dayActivityMatch[2]) {
+          // This is a day-based activity, extract ONLY the content after "Day X:"
+          const activityContent = dayActivityMatch[2].trim();
+          
+          // Skip empty activity content
+          if (!activityContent) {
+            console.warn(`Empty activity content, skipping`);
+            return;
+          }
+          
+          // Split the activity content into individual activities
+          const individualActivities = activityContent
+            .split(/,\s*(?:and\s+)?|\s+and\s+|;\s*/)
+            .map(act => act.trim())
+            .filter(act => act.length > 0);
+          
+          console.log(`Parsing activities:`, individualActivities);
+          
+          // If no individual activities were extracted (rare case), use the whole content
+          if (individualActivities.length === 0) {
+            individualActivities.push(activityContent);
+          }
+          
+          // Add each activity separately WITHOUT day references
+          individualActivities.forEach(individualActivity => {
+            // Remove trailing periods if they exist
+            const cleanActivity = individualActivity.replace(/\.$/, '').trim();
+            
+            // Skip activities that are just "Day X" with no real content
+            if (/^Day\s+\d+$/i.test(cleanActivity)) {
+              console.warn(`Skipping empty day activity: ${cleanActivity}`);
+              return;
+            }
+            
+            // Skip departure/check-out activities
+            if (/depart|check.?out|leave|return home/i.test(cleanActivity)) {
+              console.warn(`Skipping departure activity: ${cleanActivity}`);
+              return;
+            }
+            
+            activities.push({
+              name: cleanActivity,
+              description: '' // No day references in the description either
+            });
           });
+        } else if (activity.match(/^Day\s+\d+$/i)) {
+          // This is just a day number with no activities, skip it
+          console.warn(`Skipping empty day entry: ${activity}`);
+          return;
         } else {
-          activities.push({
-            name: activity,
-            description: ''
-          });
+          // Not a day-based activity, process normally
+          const parts = activity.split(/\s+-\s+|:\s+/);
+          if (parts.length > 1) {
+            activities.push({
+              name: parts[0].trim(),
+              description: parts.slice(1).join(' - ').trim()
+            });
+          } else {
+            activities.push({
+              name: activity,
+              description: ''
+            });
+          }
         }
       });
     }

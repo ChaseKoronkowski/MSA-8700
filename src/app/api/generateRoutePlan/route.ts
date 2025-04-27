@@ -45,7 +45,7 @@ Format the response as a detailed daily itinerary across all recommended days, w
       
       // Call OpenAI API with the prompt
       const response = await openai!.chat.completions.create({
-        model: "gpt-3.5-turbo",
+        model: "gpt-4o-mini",
         messages: [
           {
             role: "system",

@@ -47,8 +47,17 @@ export async function POST(request: Request) {
       );
     }
     
-    const activitiesToInsert = activities.map(activity => ({
+    // Filter out activities that are just "Day #" without any real content
+    const filteredActivities = activities.filter(activity => 
+      !(activity.name.match(/^Day \d+(-\d+)?$/) && !activity.description));
+    
+    if (filteredActivities.length === 0) {
+      return NextResponse.json({ success: true, message: 'No valid activities to save' });
+    }
+    
+    const activitiesToInsert = filteredActivities.map(activity => ({
       name: activity.name,
+      description: activity.description || '',
       destination_id
     }));
     

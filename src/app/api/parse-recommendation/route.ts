@@ -113,7 +113,7 @@ async function parseRecommendationWithOpenAI(content: string) {
         'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`
       },
       body: JSON.stringify({
-        model: "gpt-4-turbo",
+        model: "gpt-4o-mini",
         messages: [
           {
             role: "system",
@@ -387,7 +387,7 @@ async function saveRecommendationData(recommendationId: string, parsedData: any)
           console.log(`Saving ${dest.restaurants.length} restaurants`);
           const restaurants = dest.restaurants.map((restaurant: any) => {
             // Try to extract cuisine type from description
-            let cuisineType = null;
+            let cuisineType: string | null = null;
             if (restaurant.description) {
               // Look for common cuisine indicators in the description
               const cuisines = ['Italian', 'French', 'Chinese', 'Japanese', 'Mexican', 'Thai', 'Indian', 'Mediterranean', 'Middle Eastern', 'American', 'Seafood', 'Vegetarian', 'Vegan'];

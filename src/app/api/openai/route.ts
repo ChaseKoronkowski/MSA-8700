@@ -33,6 +33,8 @@ export async function POST(request: Request) {
       // Immediately after checking the API key validity
       const enhancedPrompt = `Based on the user's travel preferences: "${prompt}", recommend exactly 3 travel destinations.
 
+      Extract the trip duration from the user's preferences (look for "Trip duration: X days" in the prompt). If no specific duration is mentioned, assume a 7-day trip.
+
       For each destination, follow this exact format with clear section headers:
 
       1. {City/Region Name, Country}
@@ -48,7 +50,21 @@ export async function POST(request: Request) {
         [Recommend 3-4 restaurants across different price points, including a brief note on cuisine type. Use bullet points.]
 
       - Activities for Your Trip:
-        [Suggest activities tailored to the user's specified trip duration, organized day by day if possible. Use bullet points.]
+        [IMPORTANT: You MUST create activities for EXACTLY the number of days specified in the user's trip duration. If the user specified 10 days, you MUST create activities for all 10 days.
+        
+        List activities as DESCRIPTIVE bullet points for each day of the trip. MAKE SURE each activity contains DETAILED, DESCRIPTIVE NAMES that can stand alone without the day reference:
+        • Day 1: Visit the Ancient Temple of Karnak and explore the Valley of Kings
+        • Day 2: Take a hot air balloon ride over Luxor and tour the Luxor Museum
+        • Day 3: Sail on a felucca boat on the Nile River and visit a traditional Nubian village
+        ...and so on until you've covered EVERY day of the trip.
+        
+        IMPORTANT: 
+        1. Each activity MUST be specific and descriptive enough to make sense without the day number
+        2. Never use generic entries like "city tour" or "sightseeing" without specific locations
+        3. Never use "Departure day" or "Check out" as an activity for the final day
+        4. Each day must have multiple detailed activities with specific locations and experiences
+        5. Do not skip any days or stop before reaching the final day
+        6. Do not group days together]
 
       - Accommodation Recommendations:
         [Suggest 2-3 accommodations that match the user's preferences and budget, from luxury to budget options as appropriate. Use bullet points.]
@@ -59,7 +75,7 @@ export async function POST(request: Request) {
       
       // Call OpenAI API with the enhanced prompt
       const response = await openai!.chat.completions.create({
-        model: "gpt-3.5-turbo",
+        model: "gpt-4o-mini",
         messages: [
           {
             role: "system",

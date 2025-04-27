@@ -472,14 +472,14 @@ export default function RecommendationDetailsPage({
           why_it_fits: currentDestination.why_it_fits
         }),
       });
-      
+
       if (!destinationResponse.ok) {
         throw new Error('Failed to save destination');
       }
-      
+
       const destinationData = await destinationResponse.json();
       const destinationId = destinationData.id;
-      
+
       // Save places to visit
       if (placesToSave.length > 0) {
         const placesResponse = await fetch('/api/places-to-visit', {
@@ -518,19 +518,38 @@ export default function RecommendationDetailsPage({
       
       // Save activities
       if (activitiesToSave.length > 0) {
-        const activitiesResponse = await fetch('/api/activities', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            destination_id: destinationId,
-            activities: activitiesToSave.map(activity => ({ name: activity }))
-          }),
-        });
-        
-        if (!activitiesResponse.ok) {
-          throw new Error('Failed to save activities');
+        // Filter out activities that are just "Day #" or "Day X-Y" without any real description
+        const cleanedActivities = activitiesToSave
+          .filter(activity => {
+            if (typeof activity === 'string') {
+              return !activity.match(/^Day \d+(-\d+)?$/);
+            } else {
+              return !(activity.name && activity.name.match(/^Day \d+(-\d+)?$/) && !activity.description);
+            }
+          })
+          .map(activity => {
+            if (typeof activity === 'string') {
+              return { name: activity };
+            } else {
+              return { name: activity.name, description: activity.description || '' };
+            }
+          });
+          
+        if (cleanedActivities.length > 0) {
+          const activitiesResponse = await fetch('/api/activities', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              destination_id: destinationId,
+              activities: cleanedActivities
+            }),
+          });
+          
+          if (!activitiesResponse.ok) {
+            throw new Error('Failed to save activities');
+          }
         }
       }
       
@@ -607,8 +626,15 @@ export default function RecommendationDetailsPage({
         interests?: string[];
       };
 
+      // Ensure the duration is in the correct format for the API to extract
+      let durationValue = recDetails?.duration || 'multi-day';
+      // If duration is just a number, append "day" to it
+      if (/^\d+$/.test(durationValue)) {
+        durationValue = durationValue + "-day";
+      }
+
       let prompt = "Create a ";
-      prompt += recDetails?.duration || 'multi-day';
+      prompt += durationValue;
       prompt += " travel itinerary for ";
       prompt += recDetails?.travelers || 'travelers';
       prompt += " visiting " + destination.name + ".\n";
@@ -1105,7 +1131,9 @@ export default function RecommendationDetailsPage({
                             <ListItemIcon>
                               <DirectionsRunIcon color="primary" />
                             </ListItemIcon>
-                            <ListItemText primary={activity.name} />
+                            <ListItemText primary={activity.name.includes('Day ') && (activity.name.length < 6 || activity.name.match(/^Day \d+-\d+$/)) 
+                              ? activity.description || activity.name 
+                              : activity.name} />
                             <IconButton 
                               size="small" 
                               color="error"

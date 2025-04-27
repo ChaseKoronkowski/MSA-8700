@@ -23,13 +23,33 @@ export async function POST(request: Request) {
     
     let content: string;
     
+    // Extract the duration from the prompt with expanded patterns
+    const durationMatch = prompt.match(/Create a (\d+)-day travel itinerary/i) || 
+                         prompt.match(/Create a ([a-z]+)-day travel itinerary/i) ||
+                         prompt.match(/Create a (\d+) day travel itinerary/i) ||
+                         prompt.match(/Create a ([a-z]+) day travel itinerary/i) ||
+                         prompt.match(/(\d+)-day/i) ||
+                         prompt.match(/(\d+) day/i) ||
+                         prompt.match(/(\d+) days/i);
+    
+    let duration = "multi-day";
+    if (durationMatch && durationMatch[1]) {
+      duration = durationMatch[1] + "-day";
+    }
+    
+    // Log the extracted duration for debugging
+    console.log("Extracted duration:", duration);
+    
     // If API key is not valid, return a demo response
     if (!isValidApiKey) {
       console.warn('Using demo response because OpenAI API key is not configured');
-      content = generateDemoResponse();
+      content = generateDemoResponse(duration);
     } else {
       // Create a system prompt for itinerary generation
       const systemPrompt = `You are an expert travel planner. Create a detailed daily itinerary based on the user's preferences and available attractions. 
+      
+      The user is requesting a ${duration} itinerary. You MUST create an itinerary for EXACTLY the number of days specified.
+      
       Format the response as:
       
       Day 1:
@@ -38,13 +58,19 @@ export async function POST(request: Request) {
       Evening: [Activities or places]
       
       Day 2:
-      ... and so on.
+      Morning: [Activities or places]
+      Afternoon: [Activities or places]
+      Evening: [Activities or places]
+      
+      ... and so on until you have covered ALL ${duration} days.
+      
+      IMPORTANT: Make sure to create an itinerary for the EXACT number of days specified in the user's prompt. If they mention a 7-day trip, you MUST create a full 7-day itinerary with all 7 days clearly labeled and filled with appropriate activities.
       
       Make sure each day has a good balance of activities, not too crowded, and considers travel time between places.`;
       
       // Call OpenAI API with the prompt
       const response = await openai!.chat.completions.create({
-        model: "gpt-3.5-turbo",
+        model: "gpt-4o-mini",
         messages: [
           {
             role: "system",
@@ -56,7 +82,7 @@ export async function POST(request: Request) {
           }
         ],
         temperature: 0.7,
-        max_tokens: 2000,
+        max_tokens: 6000,
       });
 
       content = response.choices[0].message.content || '';
@@ -76,19 +102,20 @@ export async function POST(request: Request) {
 }
 
 // Function to generate a demo response when API key is not available
-function generateDemoResponse() {
-  return `Day 1:
-Morning: Start with breakfast at The Local Café, then visit the Main Museum to explore the city's history and culture.
+function generateDemoResponse(duration: string) {
+  // If duration contains a number, extract it
+  const durationDays = parseInt(duration) || 3;
+  
+  let response = '';
+  
+  for (let i = 1; i <= durationDays; i++) {
+    response += `Day ${i}:
+Morning: Start with breakfast at The Local Café ${i}, then visit the Main Museum to explore the city's history and culture.
 Afternoon: Enjoy lunch at Seaside Restaurant with ocean views, followed by a walking tour of the Historic District.
 Evening: Have dinner at The Gourmet Kitchen, then attend a local music performance at City Theater.
 
-Day 2:
-Morning: Take a morning hike at Nature Park, followed by brunch at Mountain View Café.
-Afternoon: Visit the Art Gallery, then relax at Central Park with a picnic lunch.
-Evening: Experience fine dining at Luxury Restaurant, followed by drinks at Skybar for panoramic night views.
-
-Day 3:
-Morning: Join a guided tour of the Ancient Ruins, then have breakfast at Heritage Café.
-Afternoon: Go shopping at the Local Market for souvenirs, followed by lunch at Traditional Eatery.
-Evening: Enjoy a sunset cruise along the coast, followed by dinner at Seafood Grill.`;
+`;
+  }
+  
+  return response.trim();
 } 
