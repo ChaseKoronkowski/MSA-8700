@@ -135,9 +135,7 @@ export default function AccessCodePage() {
               {isSubmitting ? 'Verifying...' : 'Access App'}
             </Button>
 
-            <Typography variant="body2" color="text.secondary" textAlign="center" mt={2}>
-              For development: Try using "strawberryshortcake2025"
-            </Typography>
+            
           </form>
         </Paper>
       </Container>

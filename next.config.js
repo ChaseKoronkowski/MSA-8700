@@ -8,6 +8,9 @@ const nextConfig = {
     // Disable TypeScript checking during builds
     ignoreBuildErrors: true,
   },
+  images: {
+    domains: ['images.unsplash.com'],
+  },
 };
 
 module.exports = nextConfig; 
